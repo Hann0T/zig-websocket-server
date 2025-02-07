@@ -35,24 +35,21 @@ pub fn main() !void {
     defer request.deinit();
 
     if (request.header_get("Sec-WebSocket-Key")) |key| {
+        std.log.info("Upgrading Protocol", .{});
         try upgrade_protocol(client_socket, key);
     }
 
-    //while (true) {
-    var buffer: [1024]u8 = undefined;
+    var buffer: [2048]u8 = undefined;
     @memset(&buffer, 0);
-    const timeout = posix.timeval{ .tv_sec = 2, .tv_usec = 500_000 };
-
-    try posix.setsockopt(client_socket, posix.SOL.SOCKET, posix.SO.RCVTIMEO, &std.mem.toBytes(timeout));
-    try posix.setsockopt(client_socket, posix.SOL.SOCKET, posix.SO.SNDTIMEO, &std.mem.toBytes(timeout));
-
-    const bytes = try posix.read(client_socket, &buffer);
-    if (bytes <= 0) {
-        std.log.info("No message or connection closed", .{});
-        //break;
+    std.log.info("Waiting for a message from the client", .{});
+    while (true) {
+        const bytes = try posix.read(client_socket, buffer[0..]);
+        if (bytes == 0) {
+            std.log.info("No message or connection closed", .{});
+            break;
+        }
+        std.log.info("bytes read: {d}", .{bytes});
     }
-    std.log.info("bytes read: {d}", .{bytes});
-    //}
 }
 
 fn upgrade_protocol(fd: posix.socket_t, key: []const u8) !void {
@@ -66,5 +63,8 @@ fn upgrade_protocol(fd: posix.socket_t, key: []const u8) !void {
     hasher.final(&h);
 
     _ = std.base64.standard.Encoder.encode(buf[key_pos .. key_pos + 28], h[0..]);
-    _ = try posix.write(fd, &buf);
+
+    const bytes = try posix.write(fd, &buf);
+    std.log.info("bytes wroten : {d}", .{bytes});
+    std.log.info("buf len      : {d}", .{buf.len});
 }
