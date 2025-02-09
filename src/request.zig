@@ -29,7 +29,7 @@ pub fn header_get(self: *Request, key: []const u8) ?[]const u8 {
 }
 
 pub fn parse(alloc: std.mem.Allocator, raw: []const u8) !Request {
-    var iter = std.mem.splitScalar(u8, raw, '\n');
+    var iter = std.mem.splitAny(u8, raw, "\r\n");
 
     const request_line = iter.next().?;
     var request_line_iter = std.mem.splitScalar(u8, request_line, ' ');
