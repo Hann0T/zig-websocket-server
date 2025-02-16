@@ -89,6 +89,11 @@ pub fn main() !void {
             else => .NonControl,
         };
 
+        if (message_type == .ConnectionClose) {
+            std.log.info("Client closed the connection", .{});
+            break;
+        }
+
         const is_masked = (second_byte & 128) == 128;
         if (!is_masked) {
             std.log.info("Client didn't mask the payload data", .{});
@@ -120,7 +125,8 @@ pub fn main() !void {
         };
 
         std.log.info("FIN: {any}", .{fin});
-        std.log.info("bytes: {d}", .{bytes});
+        std.log.info("bytes read: {d}", .{bytes});
+        std.log.info("raw data from client: {x}", .{buffer[0..10]});
         std.log.info("frame type: {any}", .{message_type});
         std.log.info("is_masked: {any}", .{is_masked});
         std.log.info("message len: {d}", .{message_len});
@@ -133,6 +139,7 @@ pub fn main() !void {
             decoded_data[i] = byte ^ masking_key[i % 4];
         }
         std.log.info("decoded data: {s}", .{decoded_data});
+        try send_message(client_socket, "pong");
     }
 }
 
@@ -152,4 +159,19 @@ fn upgrade_protocol(fd: posix.socket_t, key: []const u8) !void {
     _ = bytes;
     // std.log.info("bytes wroten : {d}", .{bytes});
     // std.log.info("buf len      : {d}", .{buf.len});
+}
+
+fn send_message(fd: posix.socket_t, message: []const u8) !void {
+    const max_len = 2 + message.len;
+    var frame: [1024]u8 = undefined;
+    @memset(&frame, 0);
+
+    frame[0] = 0b10000001;
+    frame[1] = 0b00000000 | @as(u8, @intCast(message.len));
+    @memcpy(frame[2..max_len], message);
+
+    std.log.info("sending: {x}", .{frame[0..max_len]});
+
+    const bytes = try posix.write(fd, frame[0..max_len]);
+    std.log.info("Bytes {d} were sent", .{bytes});
 }
