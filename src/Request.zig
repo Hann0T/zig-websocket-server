@@ -6,7 +6,7 @@ const Request = @This();
 
 uri: []const u8,
 version: []const u8,
-method: Method,
+method: Method, // make it optional?
 headers: []Header,
 alloc: std.mem.Allocator,
 
@@ -34,7 +34,10 @@ pub fn parse(alloc: std.mem.Allocator, raw: []const u8) !Request {
     const request_line = iter.next().?;
     var request_line_iter = std.mem.splitScalar(u8, request_line, ' ');
 
-    const method = try Method.init(request_line_iter.next().?);
+    var method: Method = undefined;
+    if (Method.is_supported(request_line_iter.peek().?)) {
+        method = try Method.init(request_line_iter.next().?);
+    }
     const uri = request_line_iter.next().?;
     const version = request_line_iter.next().?;
 
